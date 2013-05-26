@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Webページの動作やアニメーションを最適化する</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="lib/bootstrap.min.css">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    .container {
+      max-width: 600px;
+      width: 100%;
+      margin: 0 auto;
+      font-size: 1.2em;
+      padding-top: 512px;
+    }
+    #chrome {
+      position: absolute;
+      top: 0;
+    }
+    #stop-time {
+      text-align: right;
+      width: 6em;
+    }
+    #stop-button {
+      margin-left: 2em;
+    }
+    input[type=checkbox] {
+      margin-right: 0.4em;
+    }
+    label {
+      font-size: 16px;
+    }
+
+    .heavy-paints {
+      box-shadow: 0 0 20px gray;
+      border-radius: 50%;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="chrome.png" id="chrome">
+    <p class="lead">Chrome アイコンをクリック！</p>
+    <hr>
+    <form class="form-horizontal">
+      <div class="control-group">
+        <input type="number" value="32" step="16" min="0" id="stop-time" class="input-medium">ms<input type="button" value="瞬間停止" id="stop-button">
+        <p class="muted">（Scriptingレコードに影響する関数の実行）</p>
+      </div>
+      <div class="control-group">
+        <label><input type="checkbox" id="heavy-paint">重い描画<p class="muted">（Paintingレコードに影響する装飾）</p></label>
+      </div>
+      <div class="control-group">
+        <label><input type="checkbox" id="heavy-render">重いレンダリング<p class="muted">（Renderingレコードに影響するDOMアクセス）</p></label>
+      </div>
+    </form>
+  </div>
+  <script>
+    var chrome = document.getElementById('chrome'),
+        stopButton = document.getElementById('stop-button'),
+        stopTime = document.getElementById('stop-time'),
+        heavyPaint = document.getElementById('heavy-paint'),
+        heavyRender = document.getElementById('heavy-render'),
+        rotate = 0,
+        status = 0, timer,
+        directoinLeft = true,
+        doHeavyRender = false,
+        cachedOffsetLeft = chrome.offsetLeft,
+        maxOffsetLeft = document.body.offsetWidth,
+        minOffsetLeft = -chrome.offsetWidth;
+
+    window.addEventListener('resize', function(){
+      cachedOffsetLeft = chrome.offsetLeft;
+      maxOffsetLeft = document.body.offsetWidth;
+      minOffsetLeft = -chrome.offsetWidth;
+    });
+
+    chrome.addEventListener('click', function(){
+      if ( status == 0 ) {
+        start();
+        status = 1;
+      } else if ( status == 1 ) {
+        status = 2;
+      } else {
+        clearInterval(timer);
+        status = 0;
+      }
+    });
+
+    stopButton.addEventListener('click', function(){
+      sleep(stopTime.value | 0);
+    });
+    heavyPaint.addEventListener('change', function(){
+      chrome.className = heavyPaint.checked ? 'heavy-paints' : '';
+    });
+    heavyRender.addEventListener('change', function(){
+      if ( heavyRender.checked ) {
+        doHeavyRender = true;
+        if ( status == 0) {
+          start();
+        }
+        status = 2;
+      }
+    });
+
+    function start() {
+
+      timer = setInterval(function(){
+
+        // console.markTimeline('テスト');
+        if ( directoinLeft ) {
+          chrome.style.webkitTransform = 'rotate(' + rotate + 'deg)';
+          rotate = (rotate - 2) % 360;
+
+          if ( status == 2 ) {
+            if ( doHeavyRender ) {
+              heavyMove(-3);
+            } else {
+              move(-3);
+            }
+          }
+
+        } else {
+          chrome.style.webkitTransform = 'rotate(' + rotate + 'deg)';
+          rotate = (rotate + 2) % 360;
+
+          if ( status == 2 ) {
+            if ( doHeavyRender ) {
+              heavyMove(3);
+            } else {
+              move(3);
+            }
+          }
+        }
+      }, 1000/60);
+    }
+
+    function sleep(ms) {
+      var start  = performance.now();
+      while ( performance.now() < (start + ms) ) {
+        // blank for wait
+      }
+    }
+
+    function move(distance) {
+      if ( distance == 0 ) {
+        return;
+      }
+      cachedOffsetLeft = cachedOffsetLeft + distance;
+      if ( distance < 0 ) {  // move to left
+        chrome.style.left = cachedOffsetLeft + 'px';
+        if ( cachedOffsetLeft < minOffsetLeft ) {
+          directoinLeft = false;
+        }
+      } else {  // move to right
+        chrome.style.left = cachedOffsetLeft + 'px';
+        if ( cachedOffsetLeft > maxOffsetLeft ) {
+          directoinLeft = true;
+        }
+      }
+    }
+
+    function heavyMove(distance) {
+      if ( distance == 0 ) {
+        return;
+      }
+      cachedOffsetLeft = cachedOffsetLeft + distance; // dose not use at here
+
+      if ( distance < 0 ) {  // move to left
+        chrome.style.left = (chrome.offsetLeft + distance) + 'px';
+        if ( chrome.offsetLeft < -chrome.offsetWidth ) {
+          directoinLeft = false;
+        }
+      } else {  // move to right
+        chrome.style.left = (chrome.offsetLeft + distance) + 'px';
+        if ( chrome.offsetLeft > document.body.offsetWidth ) {
+          directoinLeft = true;
+        }
+      }
+    }
+  </script>
+</body>
+</html>

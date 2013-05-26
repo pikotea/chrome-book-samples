@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>メモリの利用状況やメモリリークを確認する</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="lib/bootstrap.min.css">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      width: 100%;
+    }
+    .menu {
+      margin: 1em;
+    }
+    #toggle-button {
+      margin-right: 1em;
+    }
+    #image-box {
+      width: 100%;
+      padding-bottom: 200px;
+      position: relative;
+    }
+    .image {
+      position: absolute;
+      width: 200px;
+      left: -300px;
+      -webkit-animation: a-move 3s linear, a-rotate 1s linear infinite;
+    }
+
+    @-webkit-keyframes a-move {
+      0% { left: -300px; }
+      100% { left: 100%; }
+    }
+    @-webkit-keyframes a-rotate {
+      0% { -webkit-transform: rotate(0deg); }
+      100% { -webkit-transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="menu">
+      <form class="form-horizontal">
+        <div class="control-group">
+          <input type="button" value="開始" id="toggle-button"><span>画像数: <span id="log">0</span></span>
+        </div>
+        <div class="control-group">
+          <label><input type="checkbox" id="leak-memory">メモリリーク<p class="muted">（意図的にDOM要素の参照を残す）</p></label>
+        </div>
+      </form>
+
+    </div>
+    <div id="image-box"></div>
+  </div>
+
+  <script>
+    var DISPLAY_COUNT = 10,
+        INTERVAL_RATE = 1000,
+        INTERVAL_MIN = 100;
+    var toggleButton = document.getElementById('toggle-button'),
+        leakMemory = document.getElementById('leak-memory'),
+        imageBox = document.getElementById('image-box'),
+        logView = document.getElementById('log'),
+        images = [],
+        imageCount = 0,
+        started = false,
+        isLeak = false;
+
+    toggleButton.addEventListener('click', function(){
+      if ( !started ) {
+        started = true;
+        start();
+        toggleButton.value = '停止';
+      } else {
+        started = false;
+        toggleButton.value = '開始';
+      }
+    });
+    leakMemory.addEventListener('change', function(){
+      isLeak = leakMemory.checked;
+    });
+
+    function start() {
+      addImage();
+      if ( started ) {
+        setTimeout(start, Math.random()*INTERVAL_RATE+INTERVAL_MIN);
+      }
+    }
+    function addImage() {
+      var imgNode = document.createElement('img');
+      imgNode.src = 'chrome.png';
+      imgNode.className = 'image';
+
+      imgNode.addEventListener('click', function(){
+        var left = Math.random()*2000-1000;
+        var top = Math.random()*1000-500;
+        imgNode.style.cssText = '-webkit-transition: all 1s linear; opacity:0; left:' + left + '%; top:' + top + '%;';
+      });
+
+      if ( imageCount == 0 ) {
+        imageBox.appendChild(imgNode);
+      } else {
+        imageBox.insertBefore(imgNode, imageBox.childNodes[0]);
+      }
+      images.push(imgNode);
+      imageCount++;
+
+      if ( imageCount > DISPLAY_COUNT ) {
+        imageBox.removeChild(imageBox.childNodes[imageBox.childNodes.length-1]);
+      }
+      if ( !isLeak ) {
+        if ( imageCount > DISPLAY_COUNT ) {
+          var diff = imageCount - DISPLAY_COUNT;
+          images.splice(0, diff);
+          imageCount -= diff;
+        }
+      }
+      logView.textContent = imageCount;
+    }
+  </script>
+</body>
+</html>
